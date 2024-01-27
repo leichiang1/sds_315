@@ -5,7 +5,7 @@ output:
   pdf_document:
   latex_engine: xelatex
 ---
-## Github Link: https://github.com/leichiang1/sds_315/blob/main/homework_2.Rmd
+### Github Link: https://github.com/leichiang1/sds_315/blob/main/homework_2.Rmd
 ```{r include=FALSE}
 #Reading in data and loading necessary libraries
 library(tidyverse)
