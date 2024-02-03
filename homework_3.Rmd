@@ -1,0 +1,188 @@
+---
+title: "Homework 3"
+author: "Lucas Chiang SDS-315 UT Austin"
+output: 
+    pdf_document:
+      latex_engine: xelatex
+header-includes:
+  - "\\usepackage[utf8]{inputenc}"
+    
+---
+```{r include=FALSE}
+library(tidyverse)
+library(magrittr)
+library(mosaic)
+library(knitr)
+library(kableExtra)
+creatinine <- read.csv("creatinine.csv")
+
+```
+
+# Problem 1
+
+## (a) What creatinine clearance rate should we expect for a 55-year-old? 
+
+The creatinine clearance rate that we should expect for a 55-year-old is $113.723 mL/minute$.
+
+The first investigation I pursued was creating a scatter-plot with a linear regression fitted to the model as shown below. This gave me a general idea of 
+relationship betwixt the two variables. 
+
+This plot revealed me that there is likely a linear relationship between the two variables. Thus, a linear regression model was likely the most appropriate approach.
+
+## Scatterplot of Age vs. Creatine Rate
+```{r echo=FALSE, fig.height = 3.4, fig.width=6, message=FALSE, warning=FALSE}
+ggplot(data = creatinine, aes(x = age, y = creatclear)) + 
+  geom_point() + geom_smooth(method = "lm") + labs(x = "Age", y = "Creatinine Rate")
+```
+
+I fitted a linear regression model and determined the coefficient (slope) and intercept. The intercept was $147.8129158$ and the slope resulted in $-.6198159$.
+
+## Linear Model for Age vs. Creatinine Rates
+```{r echo = FALSE}
+model_creat <- lm(creatclear ~ age, data = creatinine)
+model_creat_df <- data.frame(
+  Intercept = coef(model_creat)[1],
+  Slope = coef(model_creat)[2]
+)
+rownames(model_creat_df)[1] <- ""
+kable(t(model_creat_df))
+```
+\
+\
+
+Hence, the linear regression equation from the data is $y = -.6198159x + 147.8129158$. I manually calculated the expected creatinine rate of a 55-year-old by subsituting 55 in the linear regression equation. I also confirmed the value by using R studio's predict() function, and the result is shown below.
+
+```{r echo = FALSE}
+fifty_five <- data.frame(age = 55)
+kable(predict(model_creat, newdata = fifty_five), col.names = "Predicted Creatine Clearance Rate for a 55-year-old")
+```
+## (b) How does creatinine clearance change with age?
+
+For every additional year in a patient's age, we expect creatinine clearance to drop by $-.6198159 mL/minute$. The linear regression equation is $y = -.6198159x + 147.8129158$ as seen above, and since the slope represents the additive change of creatinine clearance rate in regards to age, we know that creatinine clearance changes by $.6198159$ in general for every additional year.
+
+## (c) Whose creatinine clearance rate is healthier (higher) for their age: a 40-year-old with a rate of 135, or a 60-year-old with a rate of 112?
+
+The 40-year-old has a healthier creatinine clearance rate for their age. The best way to approach this problem is to compare the residuals for this particular 40-year-old and 60-year-old. With the linear model described above, I obtained the following expected values of creatinine clearance rate for their ages:
+
+```{r echo = FALSE}
+ages_to_predict <- data.frame(age = c(40, 60)) 
+ages_to_predict <- ages_to_predict %>%
+mutate(cr_pred = round(predict(model_creat, newdata = .), 2))
+
+kable(ages_to_predict, col.names = c("Age", "Predicted Creatinine Clearance Rate (ml/min)"))
+```
+ 
+ Using this data, I was able to calculate the residual values by subtracting the expected creatinine clearance rates from the actual creatinine clearance rates:
+ \
+ \
+ 40-year-old: $135 - 123.02 = 11.98$
+ \
+ 60-year-old: $112 - 110.62 = 1.38$
+ \
+ \
+ Since the 40-year-old has a higher creatinine clearance rate residual ($11.98 mL/min$) compared to the 60-year-old's ($1.38 mL/min$), the 40-year-old has a higher clearance rate for his/her age.
+ 
+
+# Problem 2
+ 
+The beta or $β₁$ of the Capital Asset Pricing Model (CAPM), $Yₜ^{(k)} =\beta₀^{(k)} + \beta₁^{(k)}X_t + eₜ^{(k)}$ is a measure of the systematic risk of a firm stock. The beta can be calculated as a change in the return of a firm stock when there is a change in the market portfolio. For example, if the beta is greater for a firm stock, then it indicates that the stock's returns would tend to go up along with increasing returns in the market portfolio, and vice-versa. Hence, the beta is a measure of the systematic risk of a firm stock. This is because if the market portfolio were to drop, then the stocks with higher beta values would drop in returns at a greater percentage. In the Capital Asset Pricing Model, which is a linear model, the beta plays the role of a slope, in which it affects the rate of return of a particular stock $Yₜ^{(k)}.$  In this particular data set, I will represent this Capital Asset Pricing Model with 6 firm stocks and the market portfolio of the S&P 500 as the predictor.
+
+\
+\
+
+## Linear Regressions of Six Firm Stock Returns With The S&P 500
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+market_model <- read.csv("marketmodel.csv")
+
+apple_model <- lm(AAPL ~ SPY, data = market_model)
+google_model <- lm(GOOG ~ SPY, data = market_model)
+mrk_model <- lm(MRK ~ SPY, data = market_model)
+jnj_model <- lm(JNJ ~ SPY, data = market_model)
+wmt_model <- lm(WMT ~ SPY, data = market_model)
+tgt_model <- lm(TGT ~ SPY, data = market_model)
+
+market_table <- data.frame (
+MarketTicker = c("AAPL", "GOOG", "MRK", "JNJ", "WMT", "TGT"),
+  
+Intercept = c(round(coef(apple_model)[1], 5), round(coef(google_model)[1], 5), round(coef(mrk_model)[1], 5), round(coef(jnj_model)[1], 5), round(coef(wmt_model)[1], 5), round(coef(tgt_model)[1], 5)),
+  
+Coefficient = c(round(coef(apple_model)[2], 3) , round(coef(google_model)[2], 3), round(coef(mrk_model)[2], 3), round(coef(jnj_model)[2], 3), round(coef(wmt_model)[2], 3), round(coef(tgt_model)[2], 3)),
+
+R_Squared = c(rsquared(apple_model), rsquared(google_model), rsquared(mrk_model), rsquared(jnj_model), rsquared(wmt_model), rsquared(tgt_model))
+)
+
+kable(market_table, col.names = c("Market Ticker", "Intercept", "Coefficient", "$R^2$"), row.names = FALSE)
+```
+
+The table above shows six linear regressions of firm stocks using the returns of the market portfolio S&P 500 as a predictor of the rate of returns for the stock. The intercept is shown along with the coefficient, which is the beta ($\beta₁$) of the CAPM. Another feature shown is $R^2$; this is the percentage of how much variation of the rate of returns of an individual stock can be explained by changes in the S&P 500.
+
+Conclusion: When we observe the coefficient values of these linear regressions that represent beta in the CAPM, the lowest beta value out all of stocks belongs to WMT (Walmart Inc.). The highest beta value is AAPL (Apple Inc.). Since WMT has the lowest beta value, it indicates that it has the lowest systematic risk. Meanwhile, since AAPL has the highest beta value, it's a sign that it has the highest systematic risk. 
+
+# Problem 3
+
+In this data set, we investigate the growth rates of COVID deaths for the countries Italy and Spain over the course of February and March of 2020 by fitting exponential models ($Yₜ = Y₀e^{rt}$) to deaths vs. days elapsed since first death. The method I used to fit exponential models is by fitting a linear model to the days since first death and the logarithm of deaths.
+```{r echo = FALSE}
+covid <- read.csv("covid.csv")
+italy_data <- filter(covid, country == "Italy")
+spain_data <- filter(covid, country == "Spain")
+```
+
+## Exponential Growth Model for Covid Deaths in Italy
+```{r echo = FALSE}
+italy_model = lm(log(deaths) ~ days_since_first_death, data = italy_data)
+italy_table <- data.frame(
+  Intercept  = round(coef(italy_model)[1], 3),
+  Slope = round(coef(italy_model)[2], 3)
+)
+
+colnames(italy_table) <- c("Intercept $\\log(Y_0)$", "Slope $\\beta_0 or (r)$")
+rownames(italy_table)[1] <- ""
+kable(t(italy_table))
+```
+
+The estimated growth rate of deaths in Italy ($r$) is .183. To calculate the doubling time (time for the deaths  double), I used the "rule of 70" which is to divide 70 by the percentage growth rate. In Italy's case this is 70/18.3, which results to approximately 4. Therefore, Italy's number of deaths tended to double every 4 days from February 2020 - March 2020 after the first COVID death in Italy.
+
+## Exponential Growth Model for Covid Deaths In Spain
+```{r echo = FALSE}
+spain_model = lm(log(deaths) ~ days_since_first_death, data = spain_data)
+spain_table <- data.frame(
+  Intercept  = round(coef(spain_model)[1], 3),
+  Slope = round(coef(spain_model)[2], 3)
+)
+
+colnames(spain_table) <- c("Intercept $\\log(Y_0)$", "Slope $\\beta_0 or (r)$")
+rownames(spain_table)[1] <- ""
+kable(t(spain_table))
+```
+
+In Spain, the estimated growth rate of deaths ($r$) is .276. Using the "rule of 70," the doubling time for Spain is 3 days since the first COVID death in Spain from February to March in 2020.
+
+\
+\
+
+## Line Graph of COVID Deaths Over Time In Italy and Spain (Feb 2020 - Mar 2020)
+```{r echo = FALSE, fig.height = 3.4, fig.width = 6}
+ggplot(covid) + geom_line(aes(x = days_since_first_death, y = deaths, color = country)) + labs(x = "Days Since First Death", y = "Deaths")
+```
+
+# Problem 4
+
+In this problem, the goal is to find the price elasticity for the demand of milk using the economist power model of $Q = KP^\beta$. The price elasticty is represented by $\beta$.
+
+# Power Model For the Price Elasticity of Milk
+```{r echo = FALSE}
+milk <- read.csv("milk.csv")
+milk_model <- lm(log(sales) ~ log(price), data = milk)
+
+milk_table <- data.frame(
+  Intercept  = round(coef(milk_model)[1], 3),
+  Slope = round(coef(milk_model)[2], 3)
+)
+
+colnames(milk_table) <- c("Intercept $(\\log(K))$", "Slope $\\beta$")
+rownames(milk_table)[1] <- ""
+kable(t(milk_table))
+
+```
+
+The estimated price elasticity of demand for milk is -1.619. In order to obtain this price elasticity for the demand of milk, I created a linear model based on the logarithm of sales and the logarithm of price. Price was used as the predictor. This works because the power law can be turned into a linear model by taking the logarithm of the predictor and the logarithm of the response variable. By finding the slope of this linear model with logarithms, the resulting slope was -1.619, which is our \beta for the economist model. Thus, -1.619 is the price elasticity for the demand for milk.
