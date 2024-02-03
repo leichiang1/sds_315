@@ -1,6 +1,6 @@
 ---
 title: "Homework 3"
-author: "Lucas Chiang SDS-315 UT Austin"
+author: "Lucas Chiang (lmc4866) SDS-315 UT Austin"
 output: 
     pdf_document:
       latex_engine: xelatex
@@ -8,7 +8,7 @@ header-includes:
   - "\\usepackage[utf8]{inputenc}"
     
 ---
-### Github Link: 
+**Github Link: https://github.com/LucasChiang8/sds_315/blob/9ee56f58312258d5aed7ff3671a3f533a5732dfb/homework_3.Rmd**
 ```{r include=FALSE}
 library(tidyverse)
 library(magrittr)
