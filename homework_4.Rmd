@@ -6,7 +6,7 @@ output:
   pdf_document:
   latex_engine: xelatex
 ---
-Github Link: 
+Github Link: https://github.com/LucasChiang8/sds_315/blob/main/homework_4.Rmd
 ```{r include=FALSE}
 # Loading the Necessary Packages
 library(tidyverse)
