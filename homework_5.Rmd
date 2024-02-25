@@ -12,7 +12,7 @@ library(mosaic)
 library(knitr)
 library(kableExtra)
 ```
-**Github Link:**
+**Github Link:** https://github.com/LucasChiang8/sds_315/blob/main/homework_5.Rmd
 
 # \underline {Problem 1 - Iron Bank}
 
