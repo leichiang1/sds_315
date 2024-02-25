@@ -1,0 +1,136 @@
+---
+title: "Homework 5"
+author: "Lucas Chiang"
+date: "2024-02-24"
+output: 
+  pdf_document:
+  latex_engine: xelatex
+---
+```{r echo= FALSE, message=FALSE, warning = FALSE}
+library(tidyverse)
+library(mosaic)
+library(knitr)
+library(kableExtra)
+```
+**Github Link:**
+
+# \underline {Problem 1 - Iron Bank}
+
+**Description:** Here we are investigating if 70 out of 2021 (3.45%) of trades being flagged by the SEC in the Iron Bank, is consistent with the random variability of trading patterns with a 2.4% baseline rate of trades being flagged by the SEC algorithm.
+
+**Null Hypothesis:** The securities trades from Iron Bank are flagged at a baseline rate of 2.4% in the long run.
+
+**Test Statistic:** The test statistic I used here is a number of trades flagged over the course of 2021 trades to weigh evidence against the null hypothesis with the baseline rate being flagged being 2.4%.
+
+
+## 100000 Simulated Runs of Flagged Trades over The Course of 2021 Trades
+```{r echo = FALSE, message=FALSE, fig.width = 6, fig.height = 4}
+set.seed(123)
+sim_trades <- do(100000)*nflip(n = 2021, prob = .024)
+ggplot(sim_trades) + geom_histogram(aes(x = nflip), color = "black") + labs(x = "Number of Trades Flagged", y = "Frequency")
+```
+```{r include=FALSE}
+sum(sim_trades >= 70) / 100000
+```
+**P-Value:** The p-value here expresses the probability of obtaining 70 or more flags over the course of 2021 trades under a baseline probabilty of 2.4%. The p-value here is $0.00213$.
+
+**Conclusion**: Since the p-value is less than .05, it is statistically significant, so we can reject the null hypothesis by convention and say that the Iron Bank does not have a baseline rate of 2.4% of flagged trades and should be investigated; as a matter of personal opinion to which the null hypothesis is plausible, it is highly unlikely because the p-value is .00213 a very small number below the .05 threshold.
+
+
+# \underline {Problem 2 - Health Inspections}
+
+**Description:** Here we are investigating if 8 out of 50 inspections of health code violations in the restaurant chain Gourmet Bites, is consistent with the random variability of health code violations at a 3% baseline rate on average for the restaurants in the city. If not, then there is solid evidence for the Health Department to take action.
+
+**Null Hypothesis:** The baseline rate of health code violations for the local restaurant chain Gourmet Bites, is consistent with the citywide average rate of 3%.
+
+**Test Statistic:** The test statistic used here is the number of health code violations that is brought up under 50 inspections in a baseline rate of 3%.
+
+## 100,000 Simulated Runs of Health Code Violations Over the Course of 50 Inspections
+```{r echo = FALSE, message = FALSE, fig.width = 6, fig.height = 4}
+set.seed(123)
+sim_health <- do(100000)*nflip(n = 50, prob = .03)
+ggplot(sim_health) + geom_histogram(aes(x = nflip), color = "black", binwidth = 1) + labs(x = "Number of Health Code Violations", y = "Frequency")
+```
+```{r include = FALSE}
+sum(sim_health >= 8) / 100000
+```
+**P-Value:** The p-value here expresses the probability of getting 8 or more health code violations over the course of 50 inspections with an average rate of 3%. The p-value here is $.00014$.
+
+**Conclusion:** Since the p-value is well below the conventional threshold of .05, this value is statistically significant, and we can reject the null hypothesis and say that there is solid evidence for the Health Department to take action against Gourmet Bites; this p-value is extremely close to 0, so it is very unlikely that the null hypothesis is plausible.
+
+# \underline {Problem 3: LLM Watermarking}
+
+## \underline {Part A: The Null or Reference Distribution}
+```{r echo = FALSE, message=FALSE}
+setwd("~/Desktop/MDS/SDS315/Assignments")
+letter_frequencies <- read.csv("letter_frequencies.csv")
+sample_txt <- readLines("brown_sentences.txt")
+# Removing non-letter characters and converting the text to uppercase
+clean_text <- gsub("[^A-Za-z] ", "", sample_txt)
+clean_text <- toupper(clean_text)
+# Calculating the Letter Count
+# Using the Model function from the caeser_cipher.R example with some adjustments
+calculate_chi_squared = function(sentence, freq_table) {
+  freq_table$Probability = freq_table$Probability / sum(freq_table$Probability)
+  
+  observed_counts = table(factor(strsplit(sentence, "")[[1]], levels = freq_table$Letter))
+  
+  total_letters = sum(observed_counts)
+  expected_counts = total_letters * freq_table$Probability
+  
+  chi_squared_stat = sum((observed_counts - expected_counts)^2 / expected_counts)
+  
+  return(chi_squared_stat)
+}
+
+distribution_frame <- data.frame(chi_squared = numeric(0)
+)
+
+# Creating a Table for the Null Distribution based on the Brown Text
+for(line in clean_text) {
+    chi_square_val = calculate_chi_squared(line, letter_frequencies)
+    distribution_frame <- rbind(distribution_frame, data.frame(chi_squared = chi_square_val))
+}
+```
+
+## Null Distribution of Chi-Squared Values from English Sentences Extracted by Brown Corpus
+```{r message=FALSE, echo = FALSE, fig.width = 6, fig.height = 4}
+ggplot(distribution_frame) + geom_histogram(aes(x = chi_squared), color = "black") + labs(x = "Chi-Squared", y = "Frequency")
+```
+
+## \underline {Part B: Checking for a Watermark}
+Here, we test 10 sentences, one of which is produced by a large language model. We will figure which one it is by comparing their chi-squared values to the typical English letter distribution, and see where that chi-square value lies in the null distribution in order to calculated p-values. Doing so will allow us to see which sentence is the most likely to have been created by a large language model.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+setwd("~/Desktop/MDS/SDS315/Assignments")
+llm_test <- readLines("llmsentences.txt")
+# Cleaning up the test sentences
+llm_clean <- gsub("[^A-Za-z] ", "", llm_test)
+llm_clean <- toupper(llm_clean)
+
+llm_p_values <- data.frame(p_values = numeric(0))
+llm_chi_square <- data.frame(chi_squared = numeric(0))
+
+# Calculating the p-value for every test sentence
+for(line in llm_clean) {
+  chi_square_val = calculate_chi_squared(line, letter_frequencies)
+  llm_chi_square <- rbind(llm_chi_square, data.frame(chi_squared = round(chi_square_val,3)))
+  p_value <- round(sum(distribution_frame$chi_squared >= chi_square_val) / 56745, 3)
+  llm_p_values <- rbind(llm_p_values, data.frame(p_values = p_value))
+}
+# Chi-Squared Table
+sentence_marker <- c(1, 2 ,3, 4, 5, 6, 7, 8, 9, 10)
+llm_chi_square <- bind_cols(sentence_marker, llm_chi_square)
+colnames(llm_chi_square) <- c("Sentence", "Chi-Squared Values for Test Sentences")
+kable(llm_chi_square)
+```
+\
+\
+\
+\
+```{r echo = FALSE, message = FALSE}
+# P-Value Table
+llm_p_values <- bind_cols(sentence_marker, llm_p_values)
+colnames(llm_p_values) <- c("Sentence", "P-Values for Test Sentences")
+kable(llm_p_values)
+```
+The sentence that has been produced by a large language model is sentence 6 with a p-value of .009. We know this because in this case, the p-value is an indication of how likely it is that a human-written sentence has a chi-squared deviation statistic that is at least 96.453 or greater when compared to the null distribution. Since the p-value is extremely low and is below .05, we can reject the idea or the null hypothesis that this particular sentence resulted from chance and had a baseline distribution of typical English texts. Although sentences 3, 9, and 10, might warrant investigation because they are near the .05 threshold, sentence 6 has a much lower p-value out of all the sentences, and since we know there is only one that was produced by the LLM model, this one is the most likely to have been. Therefore, we know that sentence 6 was likely produced by a large language model which manipulated the frequency of the letters deliberately to create a watermark.
