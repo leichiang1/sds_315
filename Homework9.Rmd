@@ -1,0 +1,332 @@
+---
+title: "Homework 9 SDS-315"
+author: "Lucas Chiang (lmc4866) UT-Austin"
+date: "2024-04-14"
+output:
+  pdf_document:
+  latex_engine: xelatex
+  toc: true
+---
+
+```{r echo = F, message = F, warning = F}
+library(tidyverse)
+library(mosaic)
+library(knitr)
+library(MatchIt)
+library(cobalt)
+```
+**Github Link:**
+
+# \underline {Problem 1 -  Get out the vote}
+```{r echo = F}
+# Reading data into 
+turnout <- read.csv("turnout.csv")
+solder <- read.csv("solder.csv")
+```
+
+## \underline {Part A: How much more likely are GOTV call recipients to have voted in 1998?}
+```{r echo = F}
+turnout_filter_called <- turnout %>%
+                            filter(GOTV_call == 1)
+
+turnout_filter_not_called <- turnout %>%
+                            filter(GOTV_call == 0)
+
+prop_called <- prop.table(table(turnout_filter_called$voted1998))
+rounded_prop_called <- round(prop_called, digits = 3)
+prop_df_called <- as.data.frame(rounded_prop_called)
+colnames(prop_df_called) <- c("Voted?", "Proportion")
+kable(prop_df_called, caption = "Proportion Table of those Receiving a GOTV call and Whether They Voted in 1998")
+
+prop_not_called <- prop.table(table(turnout_filter_not_called$voted1998))
+rounded_prop_not_called <- round(prop_not_called, digits = 3)
+prop_df_not_called <- as.data.frame(rounded_prop_not_called)
+colnames(prop_df_not_called) <- c("Voted?", "Proportion")
+kable(prop_df_not_called, caption = "Proportion Table of those Not Receiving a GOTV call and Whether They Voted in 1998")
+```
+### Note: 0 means they didn't vote in 1998, while 1 means they did vote
+Above, we can observe that according to the major party's database in the given data set (turnout.csv), the proportion of those that received a GOTV call and voted was around 64.8%. Meanwhile, the proportion of those that didn't receive a GOTV call and voted was around 44.4%.
+
+```{r echo = F}
+set.seed(123)
+diff_prop <- data.frame(
+  diff_prop = numeric()
+)
+
+for (i in 1:10000) {
+  new_data <- mosaic::resample(turnout)
+  new_data_called <- new_data %>%
+                     filter(GOTV_call == 1)
+  new_data_not_called <- new_data %>%
+                     filter(GOTV_call == 0)
+  props_called <- as.data.frame(prop.table(table(new_data_called$voted1998)))
+  props_not_called <-as.data.frame(prop.table(table(new_data_not_called$voted1998)))
+  proportion_called <- props_called$Freq[2]
+  proportion_not_called <- props_not_called$Freq[2]
+  difference <- proportion_called - proportion_not_called
+  new_row <- data.frame(diff_prop = difference)
+  diff_prop <- rbind(diff_prop, new_row)
+}
+
+
+kable(confint(diff_prop, level = .95), caption = "Confidence Interval of the Difference of Proportions")
+```
+Above is a calculation of a confidence interval for the difference of proportions of people who received a GOTV call and voted in 1998 and people who didn't receive the call and voted (difference was calculated by call minus no call). Based on the confidence interval above, we can be 95% confident that the difference of proportions is between .203 and .204. Since the confidence interval does not contain 0, it is in favor of suggesting that those who received the call were more likely to vote in the 1998 Congressional midterm elections. We cannot state causation because possible confounders haven't been accounted for.
+
+## \underline {Part B: Are voted1996, AGE, and MAJORPTY confounders?}
+```{r echo = F, message = F}
+summary_table <- data.frame(
+  Variable = character(),
+  ReceivedCall = character(),
+  DidNotReceive = character()
+)
+
+# Getting the data on the individuals who voted in 1998
+turnout_filter_vote_1998 <- turnout %>%
+                            filter(voted1998 == 1)
+# Calculating the proportions of those also voted in 1996 over total who who voted in 1998 and received the call
+called <- turnout_filter_vote_1998 %>%
+          filter(GOTV_call == 1)
+
+called_and_voted_1996 <- called %>%
+                         filter(voted1996 == 1)
+# nrow(called_and_voted_1996) / nrow(called) 
+# val = .85625
+
+
+# Doing the same for those that didn't receive the call
+not_called <- turnout_filter_vote_1998 %>%
+              filter(GOTV_call == 0)
+not_called_and_voted_1996 <- not_called %>%
+                             filter(voted1996 == 1)
+# nrow(not_called_and_voted_1996) / nrow(not_called) 
+# val = .7592002
+
+# Doing the same action on MAJORPTY
+called_and_maj <- called %>%
+                  filter(MAJORPTY == 1)
+# nrow(called_and_maj) / nrow(called) 
+# val = .83125
+not_called_and_maj <- not_called %>%
+                      filter(MAJORPTY == 1)
+
+# nrow(not_called_and_maj) / nrow(not_called) 
+# val = .800934
+
+vote1996row <- data.frame(Variable = "Voted in 1996", ReceivedCall = "85.6%", DidNotReceive = "75.9%")
+
+maj_row <- data.frame(Variable = "Part of a Majority Party", ReceivedCall = "83.1%", DidNotReceive = "80.0%")
+
+summary_table <- rbind(summary_table, vote1996row, maj_row)
+colnames(summary_table) <- c("Variable", "Received Call", "Did Not Receive Call")
+
+kable(summary_table, caption = "Table of Voters in 1998")
+```
+Observe in the table above, that of those who voted in 1998, the proportion of 1996 voters in those that received a GOTV call is higher than the category of those that did not receive the call. Additionally, the category of those that received the GOTV call also had a higher proportion of majority party members.
+
+```{r echo = F, message = F}
+turnout_filter_and_voted <- turnout %>%
+                            filter(voted1996 == 1)
+
+turnout_filter_not_voted<- turnout %>%
+                            filter(voted1996 == 0)
+
+prop_voted <- prop.table(table(turnout_filter_and_voted$voted1998))
+rounded_prop_voted <- round(prop_voted, digits = 3)
+prop_df_voted <- as.data.frame(rounded_prop_voted)
+colnames(prop_df_voted) <- c("Voted in 1998?", "Proportion")
+kable(prop_df_voted, caption = "Proportion Table of those Who Voted in 1996 and Whether They Voted in 1998")
+
+prop_not_voted <- prop.table(table(turnout_filter_not_voted$voted1998))
+rounded_prop_not_voted <- round(prop_not_voted, digits = 3)
+prop_df_not_voted <- as.data.frame(rounded_prop_not_voted)
+colnames(prop_df_not_voted) <- c("Voted in 1998?", "Proportion")
+kable(prop_df_not_voted, caption = "Proportion Table of those Who Did Not Vote in 1996 and Whether They Voted in 1998")
+```
+
+In the tables above, it is observed that it is more likely that those who have voted in 1996 to have also voted in 1998. Therefore, since the variable voted1996 makes someone more likely to receive a GOTV call and also vote in 1998, this variable is a competing casual explanation to the GOTV_call variable which deems it as a confounder.
+
+```{r echo = F, message = F}
+turnout_filter_and_maj <- turnout %>%
+                            filter(MAJORPTY == 1)
+
+turnout_filter_not_maj <- turnout %>%
+                            filter(MAJORPTY == 0)
+
+prop_maj <- prop.table(table(turnout_filter_and_maj$voted1998))
+rounded_prop_maj <- round(prop_maj, digits = 3)
+prop_df_maj <- as.data.frame(rounded_prop_maj)
+colnames(prop_df_maj) <- c("Voted in 1998?", "Proportion")
+kable(prop_df_voted, caption = "Proportion Table of those Who Were Part of a Majority Party and Whether They Voted in 1998")
+
+prop_not_maj <- prop.table(table(turnout_filter_not_maj$voted1998))
+rounded_prop_not_maj <- round(prop_not_maj, digits = 3)
+prop_df_not_maj <- as.data.frame(rounded_prop_not_maj)
+colnames(prop_df_not_maj) <- c("Voted in 1998?", "Proportion")
+kable(prop_df_not_maj, caption = "Proportion Table of those Who Were Not Part of a Majority Party and Whether They Voted in 1998")
+```
+Similarly, the tables above show that is more likely for a person part of majority party to have voted in 1998. Since people belonging to a majority party made up a higher proportion in those that recieved a GOTV call than the category that did not, this shows that the variable MAJORPTY is a confounder as well.
+
+## Distributions of Ages According to Whether a Person Received a GOTV Call
+```{r echo = F, message = F, warning = F, fig.width = 5, fig.height = 3}
+ggplot(turnout) + geom_histogram(aes(x = AGE, y=..density.., binwidth=2), color = "black", fill = "dodgerblue1") + 
+facet_wrap(~GOTV_call, nrow = 2)
+
+# called_age_mean <- turnout %>%
+#                   filter(GOTV_call == 0)
+
+# mean(called_age_mean$AGE)
+
+# values: called: 58, not-called:  49
+```
+
+In the faceted histogram above, we can see that the distribution of ages for those that received the GOTV call (indicated by 1) is skewed left which shows it is likely for those that are older to receive the GOTV call. Meanwhile, the distribution of those that didn't receive the GOTV seems to have a slight right skewness which indicates that younger people were less likely to receive the call. This is also supported by the mean ages of these distributions. Those who received a call had a mean age of 58 while those who did not receive a call had a mean age of 49.
+
+## Distributions of Ages According to Whether a Person Voted in the 1998 Congressional Midterm
+```{r echo = F, message = F, warning = F, fig.width = 5, fig.height = 3}
+ggplot(turnout) + geom_histogram(aes(x = AGE, y=..density.., binwidth=2), color = "black", fill = "red") + 
+facet_wrap(~voted1998, nrow = 2)
+
+# voted_age_mean <- turnout %>%
+#                  filter(voted1998 == 0)
+
+# mean(voted_age_mean$AGE)
+
+# val voted: 55, did-not: 44
+```
+
+Here is another faceted histogram that allows us to compare the age distributions according to the group that voted in the 1998 Congressional midterm and the group that did not. We can observe that those who didn't vote (indicated by 0) had a right-skewed distribution of age which is consistent with the distribution of ages of those not receiving the GOTV call. Although it is harder in this particular histogram to discern the skewness of the distribution of ages in people that voted, the mean age of people that voted is 55, while the group that didn't had a younger mean with 44. 
+
+Overall, since it is more likely that older people were more likely to receive a GOTV call and vote in 1998, the variable AGE is also a confounder.
+
+## \underline {Part C: Reevaluating the effect of GOTV call on Voting in 1998 with Matching.}
+```{r echo = F, message = F, warning = F}
+turnout_match = matchit(GOTV_call ~ AGE + factor(voted1996) + factor(MAJORPTY), data = turnout, ratio = 5)
+
+# summary(turnout_match)
+balance_data <- match.data(turnout_match)
+f1 <- balance_data %>%
+      filter(GOTV_call == 1)
+
+match_summary_table <- data.frame(
+  sum_stat = character(),
+  Treated = character(),
+  Control = character()
+)
+age_row <- data.frame(sum_stat = "AGE mean", Treated = "58.307", Control = "58.266")
+vote1996_0row <- data.frame(sum_stat = "Proportion Did Not Vote in 1996", Treated = ".287", Control = ".287")
+vote1996_1row <- data.frame(sum_stat = "Proportion Voted in 1996", Treated = ".713", Control = ".713")
+maj_0row <- data.frame(sum_stat = "Proportion Not in Majority Party", Treated = ".198", Control = ".193")
+maj_1row <- data.frame(sum_stat = "Proportion in a Majority Party", Treated = ".802", Control = ".807")
+
+match_summary_table <- rbind(match_summary_table, age_row, vote1996_0row, vote1996_1row, maj_0row, maj_1row )
+colnames(match_summary_table) <- c("", "Treatment", "Control")
+kable(match_summary_table, caption = "Summary of Balance for Matched Data With GOTV Call as The Treatment")
+```
+The summary of covariate balance between the treatment and control group has values that are very close to each other, so the matching process will allow us to determine a cause and effect relationship between receiving a GOTV call and voting in the 1998 Congressional midterm elections.
+
+Now, we recalculate proportions and a confidence interval to measure GOTV call's effect using matched data.
+
+```{r echo = F, message = F, warning = F}
+turnout_filter_called <- balance_data %>%
+                            filter(GOTV_call == 1)
+
+turnout_filter_not_called <- balance_data %>%
+                            filter(GOTV_call == 0)
+
+prop_called <- prop.table(table(turnout_filter_called$voted1998))
+rounded_prop_called <- round(prop_called, digits = 3)
+prop_df_called <- as.data.frame(rounded_prop_called)
+colnames(prop_df_called) <- c("Voted?", "Proportion")
+kable(prop_df_called, caption = "Proportion Table of those Receiving a GOTV call and Whether They Voted in 1998")
+
+prop_not_called <- prop.table(table(turnout_filter_not_called$voted1998))
+rounded_prop_not_called <- round(prop_not_called, digits = 3)
+prop_df_not_called <- as.data.frame(rounded_prop_not_called)
+colnames(prop_df_not_called) <- c("Voted?", "Proportion")
+kable(prop_df_not_called, caption = "Proportion Table of those Not Receiving a GOTV call and Whether They Voted in 1998")
+```
+
+In the matched data, the proportion of those who voted in the group that received GOTV calls is still higher than the group who didn't receive the calls, but it is noticeably smaller than in part A(64.8% vs. 57.4%).
+
+```{r echo = F, message = F, warning = F}
+set.seed(123)
+diff_prop <- data.frame(
+  diff_prop = numeric()
+)
+
+for (i in 1:10000) {
+  new_data <- mosaic::resample(balance_data)
+  new_data_called <- new_data %>%
+                     filter(GOTV_call == 1)
+  new_data_not_called <- new_data %>%
+                     filter(GOTV_call == 0)
+  props_called <- as.data.frame(prop.table(table(new_data_called$voted1998)))
+  props_not_called <-as.data.frame(prop.table(table(new_data_not_called$voted1998)))
+  proportion_called <- props_called$Freq[2]
+  proportion_not_called <- props_not_called$Freq[2]
+  difference <- proportion_called - proportion_not_called
+  new_row <- data.frame(diff_prop = difference)
+  diff_prop <- rbind(diff_prop, new_row)
+}
+
+
+kable(confint(diff_prop, level = .95), caption = "Confidence Interval of the Difference of Proportions")
+```
+
+The confidence interval tells us that we are 95% confident that the true difference of proportion of voters in the group that received the GOTV call and those that did not receive the call is between .0733 and .0746. This result is statistical significant as the confidence interval does not contain 0. Even though this difference is smaller than before adjusting for confounders, I would argue that a 7% difference is still practically significant as 7% would amount to a large group of people in a context such as the 1998 Congressional midterms. Hence, I would say that GOTV calls creates an increase in voter turnout.
+
+# \underline {Problem 2 - Manufacturing Flaws in Circuit Boards}
+
+## \underline {Part A: Evidence that Opening Size and Alloy Thickness is Related to Skips}
+
+## Opening Size of Solder Gun and Number of Skips
+```{r echo = F, warning = F, message = F, fig.width = 5, fig.height = 3}
+ggplot(solder, aes(x = Opening, y = skips)) + geom_boxplot(width = 0.3)
+```
+
+This box-plot shows the number skips related to the opening of the solder gun used on the circuit board. Notice that the median values for size S is the largest followed by M, and then L. Thus, it seems as though that there is a relation between smaller solder gun openings and a larger number of skips.
+
+## Thickness of the Alloy Used for Soldering vs. Number of Skips
+```{r echo = F, message = F, warning = F, fig.width = 5, fig.height = 3}
+ggplot(solder, aes(x = Solder, y = skips)) + geom_boxplot(width = 0.3)
+```
+
+Here is a box-plot showing thickness of the solder alloy and the number of skips. Because the median of the thin alloy has a higher median than the thick alloy, the plot suggests that a thinner alloy is related to a higher number of skips.
+
+\
+\
+\
+
+## \underline {Part B: Regression Model Predicting Skips With Multiple Predictors}
+
+```{r echo = F, warning = F, message = F}
+skips_model = lm(skips ~ Opening + Solder + Opening:Solder, data = solder)
+skips_df <- as.data.frame(round(coef(skips_model), 3))
+colnames(skips_df) <- c("")
+kable(skips_df, caption = "Regression Model For Predicting Number of Skips Using Opening Size and Solder Type  and their Interaction as Predictors")
+```
+
+```{r echo = F, warning = F, message = F}
+skipsconf_df <- as.data.frame(confint(skips_model, level = 0.95) %>% round(3))
+kable(skipsconf_df, caption = "Confidence Intervals For Each Coefficient in the Regression Model")
+```
+
+## \underline {Part C: Interpretation of Each Coefficient in The Regression Model}
+
+* The baseline number of skips is .393. The baseline is when we use a large opening size in the solder gun and a thick solder alloy. 
+
+* The main effect of using a medium opening size in the solder gun is 2.407 skips.
+
+* The main effect of using a small opening size in the solder gun is 5.127 skips.
+
+* The interaction effect between a medium opening size and a thin solder alloy is -.740 skips.
+
+* The interaction effect between a small opening size and a thin solder alloy is 9.653 skips.
+
+## \underline {Part D: Recommendation to AT\&T}
+
+If I were to recommend a combination of opening size and solder thickness to AT&T based on my analysis, I would recommend a large opening size and a thick solder thickness. If we observe the confidence intervals, we can be 95% confident that the effects of using smaller opening sizes (medium and small) and a thin solder alloy would result in an increased number of skips since both ends of the intervals are positive. This undesired effect is especially pronounced in the interaction term between a small opening size and a thin solder alloy. Observing it, we can see that the confidence interval tells us that we can be 95% confident that using this combination would give us around 7.611 to 11.696 skips more than the baseline. This is a large amount of added skips. Therefore, to minimize the number of skips, sticking with a large opening size and a thick alloy is likely the best choice here.
+
+
+
