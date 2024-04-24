@@ -15,7 +15,7 @@ library(knitr)
 library(moderndive)
 library(effectsize)
 ```
-**Github Link: **
+**Github Link: https://github.com/leichiang1/sds_315/blob/main/homework_10.Rmd**
 
 # \underline {Problem 1 -  Redlining}
 
