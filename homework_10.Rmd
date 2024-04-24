@@ -1,0 +1,159 @@
+---
+title: "Homework 10"
+author: "Lucas Chiang"
+date: "2024-04-21"
+output: 
+  pdf_document:
+  latex_engine: xelatex
+  toc: true
+---
+
+```{r echo = F, message = F, warning = F}
+library(tidyverse)
+library(mosaic)
+library(knitr)
+library(moderndive)
+library(effectsize)
+```
+**Github Link: **
+
+# \underline {Problem 1 -  Redlining}
+
+
+**(1) Question - What question are you trying to answer?**
+
+The question we are trying to answer here is if there is an association between the number of FAIR policies and the racial/ethnic composition of a ZIP code.
+
+**(2) Approach - What approach/statistical tool did you use to answer the question?**
+
+The approach I used to answer this question was a multiple regression model in order to see how the proportion of minorities predict the number of FAIR policies made. I adjusted for fire, age, and income variables in the model.
+
+Using a multiple regression model like this allowed me to see the partial relationship between minority percentage and amount of FAIR policies made. In order to make fair comparisons between the predictors, I also created a table with standardized coefficients (z-scores) to see which predictor had the most effect on the response.
+
+Next, I used a histogram to display the distribution of FAIR policies and I also calculated a median value of the policies. This helped me assess the magnitude of effect of an increase in minority percentage.
+
+**(3) Results - What evidence/results did your approach provide to answer the question?**
+```{r echo = F, message = F, warning = F}
+redline <- read.csv("redlining.csv")
+lm_redline = lm(policies ~ minority + fire + age + income, data = redline)
+kable(get_regression_table(lm_redline), caption = "Redline Data Regression Model")
+```
+
+\
+\
+\
+
+```{r echo = F, message = F, warning = F, fig.height = 3, fig.width = 5}
+kable(standardize_parameters(lm_redline), caption = "Redline Data Regression Model With Standardized Coefficients")
+ggplot(redline) + geom_histogram(aes(x = policies)) + labs(title = "Histogram of Number of FAIR Policies", x = "Number of FAIR Polices per 100 Housing Units")
+```
+
+Here is my evidence regarding the partial relationship of the minority percentage and the number of FAIR policies. Included is a regression table, a standardized regression table, and a histogram displaying the distribution of policies per 100 housing units. Since the numbers in the standardized table are in standardized coefficients, it allows us to see which predictor is a dominant predictor in the model. Notice that the partial relationship between minority percentage and the number of FAIR policies is the largest. The median value from the distribution in the histogram is .45 policies per 100 housing units.
+
+**(4) Conclusion: What is your conclusion about your question?**
+
+There is a positive association between the racial/ethnic composition and number of FAIR policies in a ZIP code. When we observe the standardized multiple regression model, the minority variable has a coefficient of .435 which is the largest out of the predictors. This suggests that minority composition had the most effect on FAIR policies than the fire, income, and age variables. Hence, we can conclude from this comparison that minority percentage is a dominant predictor and also has an association with FAIR policies. This is because the coefficient tells that with a one standard deviation increase in minority percentage, FAIR policies increase by almost half a standard deviation which is considerable (.435). Additionally, when we observe the confidence interval, we are 95% confident that the true coefficient is somewhere between .132 to .737. This reinforces the idea that there is a clear positive partial relationship between minority percentage and FAIR policies.
+
+Furthermore, increase in minority percentage seems to a large effect on the number of FAIR policies. If we increased the minority percentage by 50 percent to estimate a denser minority area while holding all else constant, then the amount of FAIR policies per 100 housing units increases by .4 (.008 * 50). Considering that the median value of FAIR policies is a mere .45, this is a large change in number of policies. 
+
+# \underline {Problem 2 - Grocery Store Prices}
+```{r echo = F, message = F, warning = F}
+grocery <- read.csv("groceries.csv")
+```
+
+## Part A. What kind of price difference do we see across the different stores?
+
+```{r echo = F, message = F, warning = F, fig.width = 5, fig.height = 3}
+grocery_wrangle <- grocery %>%
+                   group_by(Store) %>%
+                   summarize(avg_price = mean(Price))
+
+ggplot(grocery_wrangle) + geom_col(aes(x = Store, y = avg_price)) + labs(title = "Stores and Average Product Price", y = "Average Price") + coord_flip()
+
+```
+
+Above is a bar plot showing the different stores on the vertical axis and their average price of their products on the horizontal axis from the grocery data set.
+
+## Part B. Number of Stores Selling Each Product
+
+```{r echo = F, message = F, warning = F, fig.height = 3, fig.width = 6}
+grocery_wrangle_two <- grocery %>%
+                       group_by(Product) %>%
+                       summarize(n_stores = n_distinct(paste(Store, Neighborhood)))
+
+ggplot(grocery_wrangle_two) + geom_col(position = position_dodge(width = 7), aes(x = Product, y = n_stores)) + labs(title = "Products and Number of Stores Selling Them", y = "Number of Stores Selling the Product") + coord_flip() + theme(axis.text.y = element_text(size = 4))  # Adjust text size for better visibility
+```
+
+The bar plot above shows all the products in the grocery data set on the vertical axis, and the horizontal axis shows the number of stores in the data set that sell the product.
+
+\
+\
+
+## Part C. Isolating the effects of Type of store versus the actual products being sold
+
+```{r echo = F, message = F, warning = F}
+set.seed(9)
+diff_price <- data.frame(
+  diff_price = numeric()
+)
+
+for(i in 1:10000) {
+  new_data <- mosaic::resample(grocery)
+  lm_type = lm(Price ~ Product + Type, data = new_data)
+  difference <- lm_type$coefficients[41]
+  new_row <- data.frame(diff_price = difference * -1)
+  diff_price <- rbind(diff_price, new_row)
+}
+
+
+kable(confint(diff_price, level = .95), caption = "Large-Sample Confidence Interval of the Difference Between Convenience Store Price and Grocery Store Price for the Same Product")
+```
+
+Compared with ordinary grocery stores (like Albertsons, HEB, or Krogers), convenience stores charge somewhere between \$0.62 and \$0.63 more for the same product.
+
+## Part D. Which two stores seem to charge the lowest prices when comparing the same product? Which two stores seem to charge the highest prices when comparing the same product?
+
+```{r echo = F, message = F, warning = F}
+lm_store = lm(Price ~ Product + Store, data = grocery)
+kable(get_regression_table(lm_store), caption = "Linear Model of Price versus Product and Store")
+```
+
+When observing the model, the two stores that seem to charge the lowest prices when comparing the same product are Kroger Fresh Fare and Walmart. Meanwhile, the two stores that seem to charge the highest prices when comparing the same product are Wheatsville Food Co-Op and Whole Foods.
+
+## Part E. Central Market vs. HEB
+
+Two possibilities in Consideration:
+
+* Central Market charges more than HEB for the same product.
+* Central Market charges a similar amount to HEB for the same product.
+
+
+The possibility that looks right to me is that Central Market charges a similar amount to HEB for the same product. The difference between them in the estimates in the model is \$.07 when product is held constant. This is small compared to other differences in the larger context. For example, if we try and compare HEB's pricing with Whole Foods, which also has a reputation as a "fancier grocery store" like Central Market, the difference is much greater with a difference of \$1.01 when product is held constant. 
+
+## Part F. Income and Pricing
+
+```{r echo = F, message = F, warning = F}
+grocery_mutate <- grocery %>%
+                  mutate(Income10k = Income / 10000)
+lm_income = lm(Price ~ Product + Income10k, data = grocery_mutate)
+
+kable(get_regression_table(lm_income), caption = "Linear Model of Price versus Product and Income10k ")
+
+```
+
+```{r echo = F, message = F, warning = F}
+
+kable(standardize_parameters(lm_income), caption = "Linear Regression Price versus Product and Income10k Model With Standardized Coefficients")
+
+```
+
+### Questions:
+
+**Based on the sign of the Income10k coefficient, do consumers in poorer ZIP codes seem to pay more or less for the same product, on average?**
+
+Based on the sign of the Income10k coefficient (-0.014) it seems that consumers in poorer ZIP codes seem to pay more for the same product. This can be discerned by the fact that the term symbolizes that if when Income10k increases by 1 while holding the product constant, there is a -0.014 decrease in the price. Therefore, higher income consumers seem to be paying less, and poorer consumers are paying more.
+
+**How large is the estimated size of the effect of Income10k on Price?**
+
+A one-standard deviation increase in the income of a ZIP code seems to be associated with a -.032 standard-deviation change in the price that consumers in that ZIP code expect to pay for the same product.
+
