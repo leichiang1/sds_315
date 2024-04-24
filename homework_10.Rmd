@@ -88,6 +88,8 @@ The bar plot above shows all the products in the grocery data set on the vertica
 
 \
 \
+\
+\
 
 ## Part C. Isolating the effects of Type of store versus the actual products being sold
 
@@ -96,6 +98,9 @@ set.seed(9)
 diff_price <- data.frame(
   diff_price = numeric()
 )
+
+lm_see = lm(Price ~ Product + Type, data = grocery)
+kable(get_regression_table(lm_see), caption = "Linear Model of Price versus Product and Type of Store")
 
 for(i in 1:10000) {
   new_data <- mosaic::resample(grocery)
